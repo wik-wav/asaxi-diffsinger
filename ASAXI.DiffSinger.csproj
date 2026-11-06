@@ -13,6 +13,20 @@
     <!-- no deps.json: the plugin has no runtime dependencies of its own -->
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+    <!-- Reproducible: dist/ASAXI.DiffSinger.dll must be the byte-identical output of
+         `dotnet build -c Release` from this commit, from any directory. Debug info is off
+         because a portable PDB embeds its own absolute path, which both breaks reproducibility
+         and leaks the build machine's layout. Rebuild with DebugType=portable locally if you
+         need line numbers in a stack trace; do not ship that build. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <!-- ...but NOT the commit hash in AssemblyInformationalVersion: with it, the same source
+         produces different bytes before and after a commit, and in a git checkout versus a
+         plain copy of the tree. Reproducibility has to key off the source alone. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
   </PropertyGroup>
 

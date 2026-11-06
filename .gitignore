@@ -10,6 +10,10 @@ ref/**/obj/
 *.pdb
 *.runtimeconfig.json
 
+# ...except the distributable. It is committed on purpose so the plugin can be downloaded
+# without a .NET SDK; it is reproducible from the source in this repo (see dist/README.md).
+!dist/*.dll
+
 # editor / IDE
 .vs/
 .idea/

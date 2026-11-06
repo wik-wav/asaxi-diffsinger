@@ -1,4 +1,4 @@
-# ASA XI — DiffSinger Asaxi phonemizer for OpenUtau
+# Asaxi DiffSinger phonemizer for OpenUtau
 
 A rule-based grapheme-to-phoneme plugin for **Asaxi** in **OpenUtau's DiffSinger** path. It is
 not a dictionary: every word is derived from its spelling, so a word nobody has written yet
@@ -77,6 +77,16 @@ The parts worth knowing, because they are the ones a naive reading of the spelli
 unchanged, bare (no `asa/` prefix), and `IsValidSymbol`/`IsVowel` accept them so the host's
 remapper and phonetic-hint path treat them as real symbols. They are deliberately **not**
 part of the 103-token inventory, because they are not Asaxi phonemes.
+
+## Download
+
+If you only want to *use* it, **[`dist/ASAXI.DiffSinger.dll`](dist/ASAXI.DiffSinger.dll)** is the
+built plugin — one file, no .NET SDK needed. Copy it into OpenUtau's `Plugins` folder and restart;
+it appears as **DiffSinger Asaxi Phonemizer** (`DIFFS ASA`).
+
+It is reproducible: `dotnet build -c Release` from this commit produces that exact file, byte for
+byte, from any directory. `dist/SHA256SUMS` records the hash, and `dist/README.md` says how to check
+it. If you rebuild and the bytes differ, the source changed — that is the point.
 
 ## Build
 
