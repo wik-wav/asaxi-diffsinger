@@ -1,0 +1,22 @@
+# build output
+bin/
+obj/
+
+# the reference assembly is BUILT from ref/OpenUtau.Core.Facade/Facade.cs, not stored:
+#   dotnet build ref/OpenUtau.Core.Facade -c Release
+ref/**/bin/
+ref/**/obj/
+*.dll
+*.pdb
+*.runtimeconfig.json
+
+# editor / IDE
+.vs/
+.idea/
+*.user
+*.suo
+.vscode/
+
+# os
+Thumbs.db
+.DS_Store

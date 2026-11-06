@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>ASAXI.DiffSinger</AssemblyName>
+    <RootNamespace>Asaxi</RootNamespace>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- The host loads this assembly itself; never copy OpenUtau.Core next to it. -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- no deps.json: the plugin has no runtime dependencies of its own -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+  </PropertyGroup>
+
+  <!--
+    Compiled against the REFERENCE assembly in ref/, never against an installed OpenUtau.
+    That is what keeps one built DLL usable across OpenUtau updates: the reference pins the
+    member signatures the plugin needs, and the host supplies the implementation at run time.
+
+    Rebuild the reference assembly only if you edit ref/OpenUtau.Core.Facade/Facade.cs:
+
+      dotnet build ref/OpenUtau.Core.Facade  config Release
+
+    Other projects in this repo that need the REAL assembly (the conformance test) take it from
+    the installed application by passing -p:OpenUtauCorePath=...
+  -->
+  <PropertyGroup>
+    <FacadePath Condition="'$(FacadePath)' == ''">$(MSBuildThisFileDirectory)ref\OpenUtau.Core.Facade\bin\Release\OpenUtau.Core.dll</FacadePath>
+  </PropertyGroup>
+
+  <!-- The test project and the reference assembly live under this directory; without
+       these the plugin's default **/*.cs glob compiles THEIR obj/*.AssemblyInfo.cs too,
+       which surfaces as duplicate-assembly-attribute errors. -->
+  <ItemGroup>
+    <Compile Remove="tests/**" />
+    <Compile Remove="ref/**" />
+    <None Remove="tests/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="OpenUtau.Core">
+      <HintPath>$(FacadePath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="CheckFacade" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(FacadePath)')"
+           Text="Reference assembly missing: $(FacadePath). Build it once with: dotnet build ref/OpenUtau.Core.Facade -c Release" />
+  </Target>
+
+</Project>

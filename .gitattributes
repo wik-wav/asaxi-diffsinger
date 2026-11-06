@@ -1,0 +1,16 @@
+# Normalise line endings in the repository: LF stored, LF checked out.
+# Windows tooling (Visual Studio, dotnet) is fine with LF; committing CRLF makes
+# every future diff on a non-Windows machine show whole-file changes.
+* text=auto eol=lf
+
+*.cs      text
+*.csproj  text
+*.md      text
+*.tsv     text
+*.yaml    text
+*.json    text
+*.ps1     text
+
+*.dll     binary
+*.pdb     binary
+*.png     binary

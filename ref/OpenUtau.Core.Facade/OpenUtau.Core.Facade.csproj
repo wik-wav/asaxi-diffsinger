@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A REFERENCE ASSEMBLY, not OpenUtau. It declares only the members the Asaxi plugin binds to,
+    so the plugin can be compiled without any particular OpenUtau installed, and the compiled
+    plugin binds at run time to whichever OpenUtau.Core the host has already loaded.
+
+    The assembly name must stay `OpenUtau.Core` for that binding to happen.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>OpenUtau.Core</AssemblyName>
+    <RootNamespace>OpenUtau</RootNamespace>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- a reference assembly carries no code worth shipping -->
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>Conformance</AssemblyName>
+    <RootNamespace>Conformance</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    This test needs the REAL OpenUtau.Core, because binding to it is the thing being tested: the
+    plugin was compiled against the stub in ref/, and this proves the result still binds to the
+    host's own assembly. There is no standard install location for OpenUtau, so there is no
+    default here. Supply it either way:
+
+      dotnet run on tests/Conformance with -p:OpenUtauCorePath="<path to OpenUtau.Core.dll>"
+      setx OPENUTAU_CORE "<path to OpenUtau.Core.dll>"
+
+    The plugin build itself needs neither.
+  -->
+  <PropertyGroup>
+    <OpenUtauCorePath Condition="'$(OpenUtauCorePath)' == '' AND '$(OPENUTAU_CORE)' != ''">$(OPENUTAU_CORE)</OpenUtauCorePath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="OpenUtau.Core">
+      <HintPath>$(OpenUtauCorePath)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="ASAXI.DiffSinger">
+      <HintPath>..\..\bin\Release\ASAXI.DiffSinger.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <None Include="..\asa_conformance.tsv" Link="asa_conformance.tsv">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <Target Name="CheckHostAssembly" BeforeTargets="BeforeBuild">
+    <Error Condition="'$(OpenUtauCorePath)' == ''"
+           Text="OpenUtau.Core.dll was not specified. Pass -p:OpenUtauCorePath=&quot;&lt;path&gt;&quot; or set OPENUTAU_CORE to the OpenUtau.Core.dll of the OpenUtau you run." />
+    <Error Condition="!Exists('$(OpenUtauCorePath)')"
+           Text="OpenUtau.Core.dll not found at '$(OpenUtauCorePath)'." />
+  </Target>
+
+</Project>
