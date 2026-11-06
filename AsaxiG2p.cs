@@ -22,7 +22,7 @@ namespace Asaxi {
     public class AsaxiG2p : IG2p {
         // ------------------------------------------------------------------ graphemes
         static readonly string[] Multi = {
-            "nŋ", "nn", "mm", "ch", "sh", "dh", "jh", "zh", "th", "dz", "si", "ni",
+            "nŋ", "nn", "mm", "rr", "ch", "sh", "dh", "jh", "zh", "th", "dz", "si", "ni",
         };
         static readonly string Single =
             "aáăåèëěỏőùůý" + "eoiu" + "ŋŕńś" + "'" + "xcjbfghklmprstvwxyz";
@@ -50,7 +50,7 @@ namespace Asaxi {
             { "w", "w" }, { "x", "hh" }, { "z", "z" }, { "zh", "zh" }, { "c", "ts" },
             { "dz", "dz" }, { "ŕ", "dx" }, { "'", "q" },
             // syllabic nuclei
-            { "mm", "mm" }, { "nn", "nn" }, { "nŋ", "nng" },
+            { "mm", "mm" }, { "nn", "nn" }, { "nŋ", "nng" }, { "rr", "rr" },
         };
 
         /// <summary>Digraphs that also emit the following <c>i</c>.</summary>
@@ -59,7 +59,7 @@ namespace Asaxi {
         static readonly HashSet<string> VowelGraphemes = new HashSet<string> {
             "a", "e", "i", "o", "u", "á", "å", "ă", "è", "ë", "ě", "ỏ", "ő", "ù", "ů", "ý",
         };
-        static readonly HashSet<string> Syllabic = new HashSet<string> { "mm", "nn", "nŋ" };
+        static readonly HashSet<string> Syllabic = new HashSet<string> { "mm", "nn", "nŋ", "rr" };
 
         /// <summary>Consonants that can carry a marker.</summary>
         static readonly HashSet<string> ConsonantG = new HashSet<string> {
@@ -95,7 +95,7 @@ namespace Asaxi {
             "o", "ow", "oy", "u", "uw", "yj",
         };
         /// <summary>Syllabic nuclei count as vowels for placement.</summary>
-        public static readonly string[] Nuclei = { "mm", "nn", "nng", "xn" };
+        public static readonly string[] Nuclei = { "mm", "nn", "nng", "xn", "rr" };
 
         public static readonly string[] Consonants = new[] {
             "b", "ch", "d", "dh", "dx", "dz", "f", "g", "h", "hh", "j", "jh", "k", "l",

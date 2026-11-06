@@ -144,7 +144,7 @@ namespace Conformance {
             Console.WriteLine();
             Check("every emitted symbol is declared", undeclared.Length == 0,
                 undeclared.Length == 0 ? null : string.Join(" ", undeclared));
-            Check("inventory is 103", emitted.Length == 103, emitted.Length.ToString());
+            Check("inventory is 104", emitted.Length == 104, emitted.Length.ToString());
 
             // ---------------------------------------------------------------- pause phones
             Console.WriteLine();
@@ -165,7 +165,7 @@ namespace Conformance {
             Check("AP/SP pass through a phonetic hint",
                 g2p.UnpackHint("asa/kx AP SP")?.SequenceEqual(new[] { "AP", "SP" }) == true,
                 string.Join(" ", g2p.UnpackHint("asa/kx AP SP") ?? new string[0]));
-            Check("AP/SP are not in the 103-token inventory",
+            Check("AP/SP are not in the 104-token inventory",
                 !emitted.Contains("AP") && !emitted.Contains("SP"));
 
             Console.WriteLine();
