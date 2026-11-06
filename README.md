@@ -10,7 +10,7 @@ Its sibling [`asaxi-phonemizer`](https://github.com/wik-wav/asaxi-phonemizer) is
 ## What it is
 
 ```
-[DIFFS ASA]  DiffSinger Asaxi Phonemizer      (tag DIFFS ASA, language ASA)
+[DIFFS ASA]  DiffSinger Asaxi Phonemizer      (tag DIFFS ASA, language "ASA: Asaxi")
 ```
 
 It derives from OpenUtau's `DiffSingerG2pPhonemizer`, which means the host still reads the
@@ -18,6 +18,11 @@ singer's `dsdict-asa.yaml` for the **symbol table** — the phone names, their t
 of them the bank can actually sing — and merges that with a rule G2P that supplies the
 **words**. Splitting the two is what makes an arbitrary-word phonemizer possible: the
 dictionary needs one line per phone, never one per word.
+
+The menu groups phonemizers by their attribute `language`. It is declared as `"ASA: Asaxi"`
+rather than `"ASA"` so this plugin shares the **ASA: Asaxi** submenu with the concatenative Asaxi
+plugin, which uses that same string; the two Asaxi phonemizers appear together instead of each
+getting its own heading.
 
 `GetLangCode()` returns `asa`, and that one string is what makes the host rewrite every bare
 phone the rules emit (`kx`) into the prefixed bank name (`asa/kx`) — the same mechanism

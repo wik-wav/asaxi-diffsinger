@@ -130,6 +130,9 @@ namespace Conformance {
                 Check("instantiable", instance != null);
                 Check("language code is asa", ((DiffSingerAsaxiPhonemizer)instance).GetLangCode() == "asa",
                     ((DiffSingerAsaxiPhonemizer)instance).GetLangCode());
+                // the menu groups by this verbatim; "ASA" would give the plugin its own heading
+                Check("menu language groups with the Asaxi plugin", attr.Language == "ASA: Asaxi",
+                    attr.Language);
             }
 
             // ---------------------------------------------------------------- inventory
