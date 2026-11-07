@@ -179,6 +179,12 @@ namespace Conformance {
             // the facade also declares IsPhonemeSupported (non-virtual, called not overridden)
             var isSupported = baseType.GetMethod("IsPhonemeSupported",
                 BindingFlags.Instance | BindingFlags.NonPublic);
+            // Process must override the host's, or hints can never be rewritten
+            var process = mine.GetMethod("Process", BindingFlags.Instance | BindingFlags.Public);
+            Check("Process overrides the host's",
+                process != null && process.DeclaringType == mine
+                && process.GetBaseDefinition() != process);
+
             Check("IsPhonemeSupported exists on the base",
                 isSupported != null && isSupported.ReturnType == typeof(bool)
                 && isSupported.GetParameters().Length == 1);
@@ -313,6 +319,20 @@ namespace Conformance {
             Check("asa/hh -> en/hh", AsaxiG2p.ResolveBankName("asa/hh", Has) == "en/hh");
             Check("asa/bw has no name there",
                 AsaxiG2p.ResolveBankName("asa/bw", Has) == null);
+
+            // a bare hint symbol must find the bank's own name for it
+            var hintBank = new HashSet<string> { "ja/k", "ja/a", "en/y", "ja/w", "SP", "AP" };
+            bool HasHint(string n) => hintBank.Contains(n);
+            Check("hint `k` -> ja/k on a prefixed-only bank",
+                AsaxiG2p.ResolveHintSymbol("k", HasHint) == "ja/k");
+            Check("hint `a` -> ja/a", AsaxiG2p.ResolveHintSymbol("a", HasHint) == "ja/a");
+            Check("hint `y` -> en/y (it is the spelling of `j`)",
+                AsaxiG2p.ResolveHintSymbol("y", HasHint) == "en/y");
+            Check("hint `sil` -> SP", AsaxiG2p.ResolveHintSymbol("sil", HasHint) == "SP");
+            Check("unknown hint symbol resolves to nothing",
+                AsaxiG2p.ResolveHintSymbol("zzz", HasHint) == null);
+            Check("a hint may still be written in the bank's own names",
+                AsaxiG2p.ResolveHintSymbol("ja/k", HasHint) == "ja/k");
 
             // a bank with Mandarin `q` (/tɕʰ/) but no glottal stop must NOT borrow zh/q
             var wrongQ = new HashSet<string> {

@@ -179,6 +179,47 @@ namespace Asaxi {
             FallbackAliases.TryGetValue(token, out var names) ? names : new[] { token };
 
         /// <summary>
+        /// The bank's name for a phonetic-hint symbol, or null when it has none. Accepts the
+        /// symbol as a bank name, as an Asaxi token, or as any of the spellings this module uses
+        /// for a token (`y` for `j`, `N` for `ny`, `sil`/`inh` for the pauses).
+        /// </summary>
+        public static string ResolveHintSymbol(string symbol, Func<string, bool> singerHas) {
+            if (string.IsNullOrEmpty(symbol)) {
+                return null;
+            }
+            symbol = symbol.Trim();
+            if (singerHas(symbol)) {
+                return symbol;
+            }
+            if (singerHas(Prefix + symbol)) {
+                return Prefix + symbol;
+            }
+            var asToken = ResolveBankName(Prefix + symbol, singerHas);
+            if (asToken != null) {
+                return asToken;
+            }
+            if (symbol == "sil" && singerHas("SP")) {
+                return "SP";
+            }
+            if (symbol == "inh" && singerHas("AP")) {
+                return "AP";
+            }
+            // an alternative spelling of a token: `y` belongs to `j`, `N` to `ny`, ...
+            foreach (var pair in FallbackAliases) {
+                foreach (var name in pair.Value) {
+                    var leaf = name.Substring(name.LastIndexOf('/') + 1);
+                    if (leaf == symbol) {
+                        var resolved = ResolveBankName(Prefix + pair.Key, singerHas);
+                        if (resolved != null) {
+                            return resolved;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// The bank's name for an Asaxi token, or null when it has none. Tries the token's own
         /// `<c>asa/</c>` form first, then each spelling in <see cref="FallbackNames"/> under each
         /// prefix the bank might use. Pure function of the predicate, so it can be tested without

@@ -45,6 +45,22 @@ namespace OpenUtau.Api {
         public string Name { get; set; }
         public string Tag { get; set; }
         public string Language { get; set; }
+
+        /// <summary>Stub of the host's Note. Field NAMES are what the plugin binds to.</summary>
+        public struct Note {
+            public string lyric;
+            public string phoneticHint;
+            public int tone;
+            public int position;
+            public int duration;
+        }
+
+        /// <summary>Stub of the host's Result; the plugin only passes it through.</summary>
+        public struct Result {
+        }
+
+        public abstract Result Process(Note[] notes, Note? prev, Note? next,
+                                       Note? prevNeighbour, Note? nextNeighbour, Note[] prevs);
     }
 }
 
@@ -68,5 +84,11 @@ namespace OpenUtau.Core.DiffSinger {
         // Declared on DiffSingerBasePhonemizer in the real assembly, which the stub collapses into
         // this one type. Not overridden by the plugin - only called.
         protected bool IsPhonemeSupported(string symbol) => false;
+
+        // Concrete here so a subclass can call base.Process(...); the host's own implementation
+        // is what actually runs.
+        public override Result Process(Note[] notes, Note? prev, Note? next,
+                                       Note? prevNeighbour, Note? nextNeighbour, Note[] prevs) =>
+            default;
     }
 }

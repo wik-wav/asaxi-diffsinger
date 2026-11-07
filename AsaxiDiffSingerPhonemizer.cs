@@ -41,6 +41,45 @@ namespace Asaxi {
         protected override string[] GetBaseG2pConsonants() => AsaxiG2p.Consonants;
 
         /// <summary>
+        /// Rewrites each note's phonetic hint into names the singer actually carries, then hands
+        /// the notes to the host.
+        ///
+        /// <para>The host validates a hint symbol with <c>IsValidSymbol</c> AND a lookup in the
+        /// bank's table, and only ever tries the literal symbol or <c>asa/&lt;symbol&gt;</c>. On a
+        /// bank whose names are all <c>en/…</c>, <c>ja/…</c> that means <c>[k]</c> resolves to
+        /// nothing while <c>[ja/k]</c> works — correct but unreasonable to type. This runs first,
+        /// so a bare hint works on any bank. If any symbol is unknown the hint is left untouched
+        /// and the host reports it as before.</para>
+        /// </summary>
+        public override Result Process(Note[] notes, Note? prev, Note? next,
+                                       Note? prevNeighbour, Note? nextNeighbour, Note[] prevs) {
+            TranslateHints(notes);
+            return base.Process(notes, prev, next, prevNeighbour, nextNeighbour, prevs);
+        }
+
+        void TranslateHints(Note[] notes) {
+            for (var i = 0; i < notes.Length; i++) {
+                var hint = notes[i].phoneticHint;
+                if (string.IsNullOrWhiteSpace(hint)) {
+                    continue;
+                }
+                var parts = hint.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var mapped = new string[parts.Length];
+                var complete = true;
+                for (var j = 0; j < parts.Length; j++) {
+                    mapped[j] = AsaxiG2p.ResolveHintSymbol(parts[j], IsPhonemeSupported);
+                    if (mapped[j] == null) {
+                        complete = false;
+                        break;
+                    }
+                }
+                if (complete) {
+                    notes[i].phoneticHint = string.Join(" ", mapped);
+                }
+            }
+        }
+
+        /// <summary>
         /// Wraps the loaded G2P with the things the host cannot express itself: a hint may name any
         /// phone the singer can sing, an Asaxi token is looked up under the bank's own spelling,
         /// and a cluster the bank does not really have is split into base + glide.
