@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using OpenUtau.Api;
 using OpenUtau.Core.DiffSinger;
 
@@ -23,9 +25,7 @@ namespace Asaxi {
     ///
     /// <para><b>Prefixed output.</b> <c>GetLangCode()</c> returning <c>"asa"</c> is what makes
     /// the host rewrite every bare phone this G2P emits into <c>asa/&lt;phone&gt;</c>, exactly as
-    /// <c>[DIFFS EN]</c> emits <c>en/*</c> for a multi-language bank. A bank that lacks
-    /// <c>asa/kx</c> falls back to the bare name for that one phone rather than failing the
-    /// whole word.</para>
+    /// <c>[DIFFS EN]</c> emits <c>en/*</c> for a multi-language bank.</para>
     /// </summary>
     [Phonemizer("DiffSinger Asaxi Phonemizer", "DIFFS ASA", "wik_wav", "ASA: Asaxi")]
     public class DiffSingerAsaxiPhonemizer : DiffSingerG2pPhonemizer {
@@ -46,33 +46,53 @@ namespace Asaxi {
         protected override string[] GetBaseG2pConsonants() => AsaxiG2p.Consonants;
 
         /// <summary>
-        /// Wraps the loaded G2P so that a phonetic hint may name any phone the singer can actually
-        /// sing, not only the ones the rule G2P produces.
-        ///
-        /// <para>Why: the host validates a hint symbol with
-        /// <c>g2p.IsValidSymbol(s) &amp;&amp; the bank has s</c>, and the rule G2P only claims its
-        /// own <c>asa/*</c> tokens. A UST written against the concatenative Asaxi phonemizer puts
-        /// that bank's vocabulary in the hints — <c>[y a w]</c>, <c>[a y]</c> — so every bare name
-        /// failed the first half of that test, the symbol was dropped, the note had nothing left to
-        /// sing and the bank errored. The voicebank had the phones all along; the phonemizer was
-        /// refusing to look at them.</para>
-        ///
-        /// <para>Word queries are untouched: <see cref="IG2p.Query"/> passes straight through, so
-        /// lyrics still phonemise to <c>asa/*</c>. Only hint validation widens, which is also how a
-        /// bare-symbol plugin such as the Polish one already behaves.</para>
+        /// Wraps the loaded G2P with the two things the host cannot express itself: a phonetic hint
+        /// may name any phone the singer can sing, and a cluster the bank does not really have is
+        /// split into its base phone plus a glide.
         /// </summary>
         protected override IG2p LoadG2p(string rootPath, bool useLangId = false) {
-            return new SingerVocabularyG2p(base.LoadG2p(rootPath, useLangId), IsPhonemeSupported);
+            return new SingerVocabularyG2p(base.LoadG2p(rootPath, useLangId),
+                                           IsPhonemeSupported,
+                                           TryReadTokenIds(rootPath));
         }
 
-        /// <summary>Delegates everything; widens only <c>IsValidSymbol</c> to the singer's table.</summary>
+        /// <summary>
+        /// The bank's own name -> id table, read so a placeholder alias can be told apart from a
+        /// real phone: `<c>asa/bw</c>` pointing at the id of `<c>asa/b</c>` is not a labialised
+        /// consonant, it is the plain one under another name, and must be split.
+        /// </summary>
+        static Dictionary<string, int> TryReadTokenIds(string rootPath) {
+            var ids = new Dictionary<string, int>();
+            try {
+                var path = Path.Combine(rootPath, "phonemes.json");
+                if (!File.Exists(path)) {
+                    return ids;
+                }
+                using (var doc = JsonDocument.Parse(File.ReadAllText(path))) {
+                    foreach (var property in doc.RootElement.EnumerateObject()) {
+                        if (property.Value.TryGetInt32(out var id)) {
+                            ids[property.Name] = id;
+                        }
+                    }
+                }
+            } catch (Exception) {
+                // An unreadable table is not fatal: without it the split falls back to
+                // "is the phone absent", which is the pre-existing behaviour.
+            }
+            return ids;
+        }
+
+        /// <summary>Delegates everything; widens <c>IsValidSymbol</c> and splits absent clusters.</summary>
         sealed class SingerVocabularyG2p : IG2p {
             readonly IG2p inner;
             readonly Func<string, bool> singerHas;
+            readonly Dictionary<string, int> tokenIds;
 
-            public SingerVocabularyG2p(IG2p inner, Func<string, bool> singerHas) {
+            public SingerVocabularyG2p(IG2p inner, Func<string, bool> singerHas,
+                                       Dictionary<string, int> tokenIds) {
                 this.inner = inner;
                 this.singerHas = singerHas;
+                this.tokenIds = tokenIds;
             }
 
             public bool IsValidSymbol(string symbol) =>
@@ -84,10 +104,9 @@ namespace Asaxi {
             public bool IsGlide(string symbol) => inner.IsGlide(symbol);
 
             /// <summary>
-            /// A cluster the bank cannot sing is split into its base phone plus a glide —
-            /// <c>kw</c> to <c>k</c> + <c>w</c>, <c>ky</c> to <c>k</c> + <c>j</c> — so a bank
-            /// without the coarticulated phone still sings the word instead of losing it. A bank
-            /// that HAS the cluster is untouched: the token passes through as it always did.
+            /// Splits a cluster the bank does not really have into base + glide: <c>kw</c> to
+            /// <c>k</c> + <c>w</c>, <c>ky</c> to <c>k</c> + <c>j</c>, and an aspirated stop to
+            /// stop + <c>hh</c>.
             /// </summary>
             public string[] Query(string grapheme) {
                 var phonemes = inner.Query(grapheme);
@@ -96,7 +115,7 @@ namespace Asaxi {
                 }
                 var outPhonemes = new List<string>(phonemes.Length);
                 foreach (var symbol in phonemes) {
-                    if (AsaxiG2p.TryDegrade(symbol, singerHas, out var degrades)) {
+                    if (AsaxiG2p.TryDegrade(symbol, singerHas, SharesIdWithBase, out var degrades)) {
                         outPhonemes.AddRange(degrades);
                     } else {
                         outPhonemes.Add(symbol);
@@ -104,6 +123,15 @@ namespace Asaxi {
                 }
                 return outPhonemes.ToArray();
             }
+
+            /// <summary>
+            /// True when the bank's cluster token and its base token are the SAME token id — the
+            /// signature of a placeholder alias, which carries none of the secondary articulation.
+            /// </summary>
+            bool SharesIdWithBase(string cluster, string stem) =>
+                tokenIds.TryGetValue(cluster, out var clusterId)
+                && tokenIds.TryGetValue(stem, out var stemId)
+                && clusterId == stemId;
 
             public string[] UnpackHint(string hint, char separator = ' ') =>
                 inner.UnpackHint(hint, separator);

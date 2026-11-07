@@ -168,12 +168,12 @@ namespace Conformance {
             // a bank WITH the cluster: passes through untouched
             var rich = new HashSet<string> { "asa/ky", "asa/k", "asa/j" };
             Check("bank that has asa/ky keeps it",
-                !AsaxiG2p.TryDegrade("asa/ky", s => rich.Contains(s), out rep));
+                !AsaxiG2p.TryDegrade("asa/ky", s => rich.Contains(s), null, out rep));
 
             // a bank WITHOUT it but with both halves: degrades
             var poor = new HashSet<string> { "asa/k", "asa/j" };
             Check("bank without asa/ky degrades to asa/k + asa/j",
-                AsaxiG2p.TryDegrade("asa/ky", s => poor.Contains(s), out rep)
+                AsaxiG2p.TryDegrade("asa/ky", s => poor.Contains(s), null, out rep)
                 && rep.Length == 2 && rep[0] == "asa/k" && rep[1] == "asa/j",
                 rep == null ? "(no split)" : string.Join(" ", rep));
 
@@ -185,13 +185,27 @@ namespace Conformance {
                 AsaxiG2p.MustSplit("kx") && AsaxiG2p.MustSplit("px") && !AsaxiG2p.MustSplit("ky"));
             var withAspiration = new HashSet<string> { "asa/kx", "asa/k", "asa/hh" };
             Check("aspiration splits even when the bank has asa/kx",
-                AsaxiG2p.TryDegrade("asa/kx", s => withAspiration.Contains(s), out rep)
+                AsaxiG2p.TryDegrade("asa/kx", s => withAspiration.Contains(s), null, out rep)
                 && rep.Length == 2 && rep[0] == "asa/k" && rep[1] == "asa/hh",
                 rep == null ? "(no split)" : string.Join(" ", rep));
 
+            // a placeholder alias: the bank HAS asa/bw, but it is the same id as asa/b, so it
+            // carries none of the labialisation and must still be split
+            var aliased = new HashSet<string> { "asa/bw", "asa/b", "asa/w" };
+            Check("placeholder alias (asa/bw == asa/b) still splits",
+                AsaxiG2p.TryDegrade("asa/bw", s => aliased.Contains(s),
+                                    (c, b) => c == "asa/bw" && b == "asa/b", out rep)
+                && rep.Length == 2 && rep[0] == "asa/b" && rep[1] == "asa/w",
+                rep == null ? "(no split)" : string.Join(" ", rep));
+
+            // a REAL labialised phone (its own id) must be kept
+            var genuine = new HashSet<string> { "asa/gw", "asa/g", "asa/w" };
+            Check("a genuine asa/gw is kept, not split",
+                !AsaxiG2p.TryDegrade("asa/gw", s => genuine.Contains(s), (c, b) => false, out rep));
+
             // a bank with neither half: leave it alone, the host reports it as before
             Check("bank without the glide does not degrade",
-                !AsaxiG2p.TryDegrade("asa/ky", s => s == "asa/k", out rep));
+                !AsaxiG2p.TryDegrade("asa/ky", s => s == "asa/k", null, out rep));
 
             // ---------------------------------------------------------------- pause phones
             Console.WriteLine();

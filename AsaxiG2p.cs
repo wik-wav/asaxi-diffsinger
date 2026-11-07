@@ -132,11 +132,22 @@ namespace Asaxi {
             && parts.AlwaysSplit;
 
         /// <summary>
-        /// Splits a cluster the bank cannot sing into base + glide. Returns false when the symbol
-        /// is singable, is not a splittable cluster, or when either half is also missing — in
-        /// which case the caller keeps the original and the host reports it as before.
+        /// Splits a cluster the bank cannot really sing into base + glide.
+        ///
+        /// <para>Three reasons to split: the bank has no such phone at all; the token is an
+        /// aspirated stop, which is always realised as stop + release; or the bank's cluster
+        /// shares its base's token id, which means it is a placeholder alias of the plain phone
+        /// and carries none of the secondary articulation. That last case is why `<c>asa/bw</c>`
+        /// being present in a bank is not evidence that the bank can sing a labialised /b/ —
+        /// when the placeholder pass wrote it, it points at `<c>asa/b</c>`.</para>
+        ///
+        /// <para>Returns false when nothing should change, or when either half is missing, in
+        /// which case the caller keeps the original and the host reports it as before.</para>
         /// </summary>
+        /// <param name="isPlaceholderAlias">Given (cluster, base) token names, true when the bank
+        /// resolves them to the same id. Null when the bank's id table could not be read.</param>
         public static bool TryDegrade(string symbol, Func<string, bool> singerHas,
+                                      Func<string, string, bool> isPlaceholderAlias,
                                       out string[] replacement) {
             replacement = null;
             if (string.IsNullOrEmpty(symbol)) {
@@ -147,12 +158,12 @@ namespace Asaxi {
             if (!TrySplitCluster(bare, out var stem, out var glide)) {
                 return false;
             }
-            // a secondary articulation is only a fallback; aspiration is always stop + release
-            if (!MustSplit(bare) && singerHas(symbol)) {
-                return false;
-            }
             var head = prefix + stem;
             var tail = prefix + glide;
+            if (!MustSplit(bare) && singerHas(symbol)
+                && !(isPlaceholderAlias != null && isPlaceholderAlias(symbol, head))) {
+                return false;
+            }
             if (!singerHas(head) || !singerHas(tail)) {
                 return false;
             }

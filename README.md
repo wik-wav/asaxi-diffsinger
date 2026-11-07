@@ -100,15 +100,24 @@ the matching phone. When it does not, the word is not lost: the phonemizer **spl
 into its base phone plus a glide** — `kw` → `k` + `w`, `ky` → `k` + `j` — which is what a
 concatenative bank does with the same word, so a UST moves between the two without editing.
 
-A bank that *has* the cluster is untouched — this only fires on a symbol the singer cannot sing.
+A bank that genuinely *has* the cluster is untouched. "Has" means the bank's token id differs
+from its base phone's id: a placeholder alias such as `asa/bw`, written by the bank-side pass and
+pointing at the very id of `asa/b`, is **not** a labialised consonant — it is the plain one under
+another name — so it is split anyway. That is the difference between `asa/gw`, which on a 2.5-family
+bank is a real `/ɡʷ/` (`ja/gw`, its own id) and is kept, and `asa/bw`, which is `b` (same id) and is
+not.
 
 What never splits, on purpose:
 
 | token | why |
 |---|---|
-| `kx`, `tx`, `px`, `chx`, `cx` | aspiration has no glide to hand the release to |
+| `kx`, `tx`, `px`, `chx`, `cx` | they *do* split — always, into stop + `hh`; see below |
 | `ny` | it is /ɲ/, one phoneme — not `n` + `j` |
 | `hy` | it is /ç/, one phoneme — not `h` + `j` |
+
+**Aspiration always splits**, unlike the two glides, because no bank of this family has a trained
+aspirated series: `kx` becomes `k` + `hh`, and `hh` is the aspiration token (`en/hh` on a 2.5-family
+bank). A stop plus its release is closer to /kʰ/ than a bare /k/.
 
 Applies to lyrics, not to phonetic hints: the host validates a hint symbol verbatim and hands it
 straight to the bank, so a hint naming a phone the bank lacks is still dropped.
