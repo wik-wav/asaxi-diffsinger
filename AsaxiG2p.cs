@@ -20,6 +20,9 @@ namespace Asaxi {
     /// <c>asa/kx</c> for a multi-language bank.
     /// </summary>
     public class AsaxiG2p : IG2p {
+        /// <summary>The bank-name prefix every Asaxi token carries.</summary>
+        public const string Prefix = "asa/";
+
         // ------------------------------------------------------------------ graphemes
         static readonly string[] Multi = {
             "nŋ", "nn", "mm", "rr", "ch", "sh", "dh", "jh", "zh", "th", "dz", "si", "ni",
@@ -76,6 +79,66 @@ namespace Asaxi {
             ConsonantG.Where(c => c != "r" && c != "n" && c != "s" && c != "z"
                                   && c != "ń" && c != "ś" && c != "zh"));
         static readonly HashSet<string> CanTakeX = new HashSet<string> { "p", "t", "k", "ch", "c" };
+
+        /// <summary>
+        /// Cluster token -> the two phones it degrades into when a bank has no such cluster.
+        /// Only secondary articulations split: <c>kw</c> becomes <c>k</c> + <c>w</c> and
+        /// <c>ky</c> becomes <c>k</c> + <c>j</c>. Aspiration (<c>kx</c>) does not split — there is
+        /// no separate /h/ phoneme to hand it to — and neither do the base tokens that merely
+        /// look like clusters: <c>ny</c> is /ɲ/ and <c>hy</c> is /ç/, each a single phoneme.
+        /// </summary>
+        static readonly Dictionary<string, (string Stem, string Glide)> Splittable = BuildSplittable();
+
+        static Dictionary<string, (string, string)> BuildSplittable() {
+            var table = new Dictionary<string, (string, string)>();
+            foreach (var g in CanTakeW) {
+                table[Base[g] + "w"] = (Base[g], "w");
+            }
+            foreach (var g in CanTakeJ) {
+                table[Base[g] + "y"] = (Base[g], "j");
+            }
+            table.Remove("hy");   // /ç/ is one phoneme, not h + j
+            return table;
+        }
+
+        /// <summary>
+        /// If <paramref name="token"/> is a labialised or palatalised cluster, the base token and
+        /// the glide it can be spelled with on a bank that has no such cluster.
+        /// </summary>
+        public static bool TrySplitCluster(string token, out string stem, out string glide) {
+            stem = glide = null;
+            if (string.IsNullOrEmpty(token) || !Splittable.TryGetValue(token, out var parts)) {
+                return false;
+            }
+            stem = parts.Stem;
+            glide = parts.Glide;
+            return true;
+        }
+
+        /// <summary>
+        /// Splits a cluster the bank cannot sing into base + glide. Returns false when the symbol
+        /// is singable, is not a splittable cluster, or when either half is also missing — in
+        /// which case the caller keeps the original and the host reports it as before.
+        /// </summary>
+        public static bool TryDegrade(string symbol, Func<string, bool> singerHas,
+                                      out string[] replacement) {
+            replacement = null;
+            if (string.IsNullOrEmpty(symbol) || singerHas(symbol)) {
+                return false;
+            }
+            var prefix = symbol.StartsWith(Prefix) ? Prefix : string.Empty;
+            var bare = symbol.Substring(prefix.Length);
+            if (!TrySplitCluster(bare, out var stem, out var glide)) {
+                return false;
+            }
+            var head = prefix + stem;
+            var tail = prefix + glide;
+            if (!singerHas(head) || !singerHas(tail)) {
+                return false;
+            }
+            replacement = new[] { head, tail };
+            return true;
+        }
 
         /// <summary>
         /// The fused imperative: <c>-wë</c> is <c>ů</c> + <c>hè</c>, so its <c>w</c> descends

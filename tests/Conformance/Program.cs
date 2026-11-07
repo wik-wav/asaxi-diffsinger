@@ -153,6 +153,36 @@ namespace Conformance {
                 undeclared.Length == 0 ? null : string.Join(" ", undeclared));
             Check("inventory is 104", emitted.Length == 104, emitted.Length.ToString());
 
+            // ---------------------------------------------------------------- cluster splitting
+            Console.WriteLine();
+            string[] rep;
+            Check("kw splits to k + w",
+                AsaxiG2p.TrySplitCluster("kw", out var s1, out var g1) && s1 == "k" && g1 == "w");
+            Check("ky splits to k + j",
+                AsaxiG2p.TrySplitCluster("ky", out var s2, out var g2) && s2 == "k" && g2 == "j");
+            Check("nyw splits to ny + w",
+                AsaxiG2p.TrySplitCluster("nyw", out var s3, out var g3) && s3 == "ny" && g3 == "w");
+            Check("ny does NOT split (it is /ɲ/)", !AsaxiG2p.TrySplitCluster("ny", out _, out _));
+            Check("hy does NOT split (it is /ç/)", !AsaxiG2p.TrySplitCluster("hy", out _, out _));
+            Check("kx does NOT split (aspiration has no glide)",
+                !AsaxiG2p.TrySplitCluster("kx", out _, out _));
+
+            // a bank WITH the cluster: passes through untouched
+            var rich = new HashSet<string> { "asa/ky", "asa/k", "asa/j" };
+            Check("bank that has asa/ky keeps it",
+                !AsaxiG2p.TryDegrade("asa/ky", s => rich.Contains(s), out rep));
+
+            // a bank WITHOUT it but with both halves: degrades
+            var poor = new HashSet<string> { "asa/k", "asa/j" };
+            Check("bank without asa/ky degrades to asa/k + asa/j",
+                AsaxiG2p.TryDegrade("asa/ky", s => poor.Contains(s), out rep)
+                && rep.Length == 2 && rep[0] == "asa/k" && rep[1] == "asa/j",
+                rep == null ? "(no split)" : string.Join(" ", rep));
+
+            // a bank with neither half: leave it alone, the host reports it as before
+            Check("bank without the glide does not degrade",
+                !AsaxiG2p.TryDegrade("asa/ky", s => s == "asa/k", out rep));
+
             // ---------------------------------------------------------------- pause phones
             Console.WriteLine();
             Check("AP phonemises to AP", g2p.Query("AP")?.SequenceEqual(new[] { "AP" }) == true,

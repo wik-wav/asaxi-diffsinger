@@ -93,6 +93,26 @@ It is reproducible: `dotnet build -c Release` from this commit produces that exa
 byte, from any directory. `dist/SHA256SUMS` records the hash, and `dist/README.md` says how to check
 it. If you rebuild and the bytes differ, the source changed — that is the point.
 
+### Banks without the coarticulated phones
+
+`kw`, `ky`, `pw`, `by`, `chw` … are single tokens here, and a bank only sings them if it carries
+the matching phone. When it does not, the word is not lost: the phonemizer **splits the cluster
+into its base phone plus a glide** — `kw` → `k` + `w`, `ky` → `k` + `j` — which is what a
+concatenative bank does with the same word, so a UST moves between the two without editing.
+
+A bank that *has* the cluster is untouched — this only fires on a symbol the singer cannot sing.
+
+What never splits, on purpose:
+
+| token | why |
+|---|---|
+| `kx`, `tx`, `px`, `chx`, `cx` | aspiration has no glide to hand the release to |
+| `ny` | it is /ɲ/, one phoneme — not `n` + `j` |
+| `hy` | it is /ç/, one phoneme — not `h` + `j` |
+
+Applies to lyrics, not to phonetic hints: the host validates a hint symbol verbatim and hands it
+straight to the bank, so a hint naming a phone the bank lacks is still dropped.
+
 ## Build
 
 Needs the .NET **10** SDK. Nothing else — no OpenUtau, no NuGet packages, no Visual Studio.

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenUtau.Api;
 using OpenUtau.Core.DiffSinger;
@@ -82,7 +83,27 @@ namespace Asaxi {
 
             public bool IsGlide(string symbol) => inner.IsGlide(symbol);
 
-            public string[] Query(string grapheme) => inner.Query(grapheme);
+            /// <summary>
+            /// A cluster the bank cannot sing is split into its base phone plus a glide —
+            /// <c>kw</c> to <c>k</c> + <c>w</c>, <c>ky</c> to <c>k</c> + <c>j</c> — so a bank
+            /// without the coarticulated phone still sings the word instead of losing it. A bank
+            /// that HAS the cluster is untouched: the token passes through as it always did.
+            /// </summary>
+            public string[] Query(string grapheme) {
+                var phonemes = inner.Query(grapheme);
+                if (phonemes == null) {
+                    return null;
+                }
+                var outPhonemes = new List<string>(phonemes.Length);
+                foreach (var symbol in phonemes) {
+                    if (AsaxiG2p.TryDegrade(symbol, singerHas, out var degrades)) {
+                        outPhonemes.AddRange(degrades);
+                    } else {
+                        outPhonemes.Add(symbol);
+                    }
+                }
+                return outPhonemes.ToArray();
+            }
 
             public string[] UnpackHint(string hint, char separator = ' ') =>
                 inner.UnpackHint(hint, separator);
