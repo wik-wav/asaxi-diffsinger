@@ -180,10 +180,10 @@ namespace Conformance {
             var isSupported = baseType.GetMethod("IsPhonemeSupported",
                 BindingFlags.Instance | BindingFlags.NonPublic);
             // Process must override the host's, or hints can never be rewritten
-            var process = mine.GetMethod("Process", BindingFlags.Instance | BindingFlags.Public);
-            Check("Process overrides the host's",
-                process != null && process.DeclaringType == mine
-                && process.GetBaseDefinition() != process);
+            // hints are computed in SetUp, so that is the one that must be overridden
+            var setUp = mine.GetMethod("SetUp", BindingFlags.Instance | BindingFlags.Public);
+            Check("SetUp overrides the host's (where hints are read)",
+                setUp != null && setUp.DeclaringType == mine && setUp.GetBaseDefinition() != setUp);
 
             Check("IsPhonemeSupported exists on the base",
                 isSupported != null && isSupported.ReturnType == typeof(bool)

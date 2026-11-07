@@ -61,6 +61,13 @@ namespace OpenUtau.Api {
 
         public abstract Result Process(Note[] notes, Note? prev, Note? next,
                                        Note? prevNeighbour, Note? nextNeighbour, Note[] prevs);
+
+        /// <summary>
+        /// Runs before Process and is where the phonemes are computed. The plugin overrides it to
+        /// rewrite phonetic hints; the project and track types are stubs and never touched.
+        /// </summary>
+        public virtual void SetUp(Note[][] groups, OpenUtau.Core.Ustx.UProject project,
+                                  OpenUtau.Core.Ustx.UTrack track) { }
     }
 }
 
@@ -91,4 +98,10 @@ namespace OpenUtau.Core.DiffSinger {
                                        Note? prevNeighbour, Note? nextNeighbour, Note[] prevs) =>
             default;
     }
+}
+
+namespace OpenUtau.Core.Ustx {
+    /// <summary>Stubs: the plugin's SetUp override only needs the parameter types.</summary>
+    public class UProject { }
+    public class UTrack { }
 }

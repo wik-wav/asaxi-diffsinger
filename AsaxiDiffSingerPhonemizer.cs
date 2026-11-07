@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using OpenUtau.Api;
 using OpenUtau.Core.DiffSinger;
+using OpenUtau.Core.Ustx;
 
 namespace Asaxi {
     /// <summary>
@@ -51,10 +52,15 @@ namespace Asaxi {
         /// so a bare hint works on any bank. If any symbol is unknown the hint is left untouched
         /// and the host reports it as before.</para>
         /// </summary>
-        public override Result Process(Note[] notes, Note? prev, Note? next,
-                                       Note? prevNeighbour, Note? nextNeighbour, Note[] prevs) {
-            TranslateHints(notes);
-            return base.Process(notes, prev, next, prevNeighbour, nextNeighbour, prevs);
+        public override void SetUp(Note[][] groups, UProject project, UTrack track) {
+            if (groups != null) {
+                foreach (var group in groups) {
+                    if (group != null) {
+                        TranslateHints(group);
+                    }
+                }
+            }
+            base.SetUp(groups, project, track);
         }
 
         void TranslateHints(Note[] notes) {
