@@ -145,28 +145,33 @@ namespace Asaxi {
         /// own name.
         /// </summary>
         static readonly Dictionary<string, string[]> FallbackAliases = new Dictionary<string, string[]> {
-            { "j", new[] { "y" } },
-            { "S", new[] { "S", "sh" } },
-            { "ts", new[] { "ts", "c" } },
-            { "dz", new[] { "dz" } },
-            { "ny", new[] { "ny", "N" } },
-            { "dx", new[] { "dx", "r" } },
-            { "rr", new[] { "er", "rr" } },
-            { "hh", new[] { "hh", "h", "H" } },
-            { "h", new[] { "h", "x" } },
-            { "xn", new[] { "xn", "nn", "n" } },
-            { "nng", new[] { "nng", "ng" } },
-            { "cl", new[] { "cl", "tcl" } },
-            { "q", new[] { "q", "?" } },
-            { "yj", new[] { "iy", "ih" } },
-            // banks that never write a bare close vowel: `e` is eh/ey, `i` is iy, `o` is oh/ow,
-            // `u` is uu/uw. The Asaxi spelling is still tried first, so a bank that HAS `en/e`
-            // resolves to it and these are only a fallback.
-            { "e", new[] { "e", "eh", "ey" } },
-            { "i", new[] { "i", "iy" } },
-            { "o", new[] { "o", "oh", "ow" } },
-            { "u", new[] { "u", "uu", "uw" } },
-            { "aj", new[] { "ay" } },
+            // Names that mean a DIFFERENT phone in another language. Values are the acceptable
+            // names in order; a qualified name is tried verbatim, a plain one bare only, so a
+            // bank can never be satisfied by a phone that merely shares the spelling.
+            // IPA per EN-/PL-/JA-phonemiser-IPA-documentation.md.
+            { "j", new[] { "en/y", "ja/y", "y" } },            // ja/j is /dʑ/
+            { "S", new[] { "pl/S", "ja/sh", "zh/x", "S", "sh" } },   // en/sh is /ʃ/
+            { "h", new[] { "pl/h", "zh/h", "h" } },            // en/h is /h/, Asaxi is /x/
+            { "f", new[] { "en/f", "pl/f", "zh/f", "f" } },    // ja/f is /ɸ/
+            { "ch", new[] { "en/ch", "ch" } },                 // ja/ch is /tɕ/
+            { "ts", new[] { "ja/ts", "pl/c", "en/ts", "ts" } },
+            { "dz", new[] { "ja/dz", "en/dz", "dz" } },
+            { "ny", new[] { "ja/ny", "pl/N", "ny", "N" } },
+            { "dx", new[] { "en/dx", "ja/r", "dx", "r" } },
+            { "r", new[] { "en/r", "zh/r", "r" } },            // ja/r is a flap
+            { "rr", new[] { "en/er", "er", "ja/rr", "rr" } },
+            { "hh", new[] { "en/hh", "hh", "h", "H" } },
+            { "hy", new[] { "ja/hy", "hy" } },
+            { "v", new[] { "en/v", "pl/w", "v" } },
+            { "z", new[] { "en/z", "pl/z", "ja/z", "z" } },    // zh/z is /ts/
+            { "e", new[] { "pl/e", "ja/e", "en/e", "e", "eh", "ey" } },  // zh/e is /ɤ/
+            { "i", new[] { "ja/i", "en/iy", "pl/i", "i", "iy" } },
+            { "o", new[] { "ja/o", "en/o", "o", "oh", "ow" } },
+            { "u", new[] { "ja/u", "u", "uu", "uw" } },        // en/uw is /u/, Asaxi is /ɯ/
+            { "yj", new[] { "en/iy", "iy", "ih" } },
+            // q is the one name that is a DIFFERENT phone in Mandarin (/tɕʰ/); the nuclei
+            // and `cl` are not ambiguous and stay on the generic ladder above.
+            { "q", new[] { "en/q", "ja/q", "q" } },            // NEVER zh/q (/tɕʰ/)
         };
 
         /// <summary>Spellings to try for a token, most specific first.</summary>
@@ -188,7 +193,23 @@ namespace Asaxi {
             }
             var prefix = symbol.StartsWith(Prefix) ? Prefix : string.Empty;
             var bare = symbol.Substring(prefix.Length);
+            // A token with an explicit entry has its acceptable spellings enumerated; a plain
+            // name there is tried bare only, so no language can lend it a different phone.
+            // A token WITHOUT an entry is unambiguous and keeps the generic prefix search.
+            var curated = FallbackAliases.ContainsKey(bare);
             foreach (var name in FallbackNames(bare)) {
+                if (name.IndexOf('/') >= 0) {
+                    if (singerHas(name)) {
+                        return name;
+                    }
+                    continue;
+                }
+                if (curated) {
+                    if (singerHas(name)) {
+                        return name;
+                    }
+                    continue;
+                }
                 foreach (var bankPrefix in BankPrefixes) {
                     var candidate = bankPrefix + name;
                     if (singerHas(candidate)) {

@@ -146,9 +146,16 @@ dotnet run --project tests/Conformance -c Release -p:OpenUtauCorePath="<path to 
 ```
 
 It reports how many of the 104 tokens are found directly, found through the ladder, covered by a
-split, or unresolvable. A prepared Asaxi bank reports 104 direct. A large multi-language bank with
-no Asaxi support reports 0 direct and the rest split between the ladder and the split, typically
-with nothing lost; a deliberately small bank will lose the phones it simply does not have.
+split, or unresolvable. A prepared Asaxi bank reports 104 direct; a large multi-language bank with
+no Asaxi support reports 0 direct and the rest split between the ladder and the split.
+
+**A phone the bank does not have is left out, not replaced by a look-alike.** Names that mean a
+different phone in another language are enumerated explicitly and nothing else will match them —
+`q` is the glottal stop, so it may resolve to `en/q` or `ja/q` but never to `zh/q`, which is
+Mandarin /tɕʰ/. The same applies to `ch` (ja/ch is /tɕ/), `j` (ja/j is /dʑ/), `f` (ja/f is /ɸ/),
+`z` (zh/z is /ts/) and `e` (zh/e is /ɤ/). Where a bank has none of the acceptable spellings, that
+phone is dropped from the note and OpenUtau reports it, which is the honest outcome: a substituted
+phone would be silently wrong rather than visibly missing.
 
 ## Build
 

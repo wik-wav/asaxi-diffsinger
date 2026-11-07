@@ -314,6 +314,19 @@ namespace Conformance {
             Check("asa/bw has no name there",
                 AsaxiG2p.ResolveBankName("asa/bw", Has) == null);
 
+            // a bank with Mandarin `q` (/tɕʰ/) but no glottal stop must NOT borrow zh/q
+            var wrongQ = new HashSet<string> {
+                "en/a", "zh/q", "zh/ch", "ja/ch", "es/ts",
+            };
+            bool HasWrongQ(string n) => wrongQ.Contains(n);
+            Check("asa/q never resolves to zh/q (/tɕʰ/)",
+                AsaxiG2p.ResolveBankName("asa/q", HasWrongQ) == null,
+                AsaxiG2p.ResolveBankName("asa/q", HasWrongQ) ?? "(none)");
+            Check("asa/ch never resolves to ja/ch (/tɕ/)",
+                AsaxiG2p.ResolveBankName("asa/ch", HasWrongQ) == null);
+            Check("asa/hy never resolves to a look-alike",
+                AsaxiG2p.ResolveBankName("asa/hy", HasWrongQ) == null);
+
             // ...and that the cluster then splits into two names the bank does have
             Check("asa/bw splits to en/b + en/w on that bank",
                 !Has("asa/bw")

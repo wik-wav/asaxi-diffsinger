@@ -48,7 +48,8 @@ namespace Asaxi {
         protected override IG2p LoadG2p(string rootPath, bool useLangId = false) {
             return new SingerVocabularyG2p(base.LoadG2p(rootPath, useLangId),
                                            IsPhonemeSupported,
-                                           TryReadTokenIds(rootPath));
+                                           TryReadTokenIds(rootPath),
+                                           new AsaxiG2p());
         }
 
         /// <summary>The symbol table's path as the bank's own dsconfig declares it.</summary>
@@ -94,13 +95,15 @@ namespace Asaxi {
             readonly Func<string, bool> singerHas;
             readonly Dictionary<string, int> tokenIds;
             readonly bool idsKnown;
+            readonly AsaxiG2p rules;
 
             public SingerVocabularyG2p(IG2p inner, Func<string, bool> singerHas,
-                                       Dictionary<string, int> tokenIds) {
+                                       Dictionary<string, int> tokenIds, AsaxiG2p rules) {
                 this.inner = inner;
                 this.singerHas = singerHas;
                 this.tokenIds = tokenIds;
                 this.idsKnown = tokenIds.Count > 0;
+                this.rules = rules;
             }
 
             public bool IsValidSymbol(string symbol) =>
@@ -118,13 +121,21 @@ namespace Asaxi {
             /// plus its glide. Anything unresolvable is passed through and the host reports it.
             /// </summary>
             public string[] Query(string grapheme) {
-                var phonemes = inner.Query(grapheme);
-                if (phonemes == null) {
+                // The Asaxi rules answer directly. Going through the host's chain would let the
+                // singer's own word list win: a Japanese bank contains `ja`, so typing `ja`
+                // came back as that bank's `ja/j ja/a` while `ăja` - absent from any dictionary -
+                // fell through and phonemised correctly.
+                var tokens = rules.Query(grapheme);
+                if (tokens == null) {
                     return null;
                 }
-                var outPhonemes = new List<string>(phonemes.Length);
-                foreach (var symbol in phonemes) {
-                    Emit(symbol, outPhonemes);
+                var outPhonemes = new List<string>(tokens.Length);
+                foreach (var token in tokens) {
+                    if (token == "SP" || token == "AP") {
+                        outPhonemes.Add(token);
+                        continue;
+                    }
+                    Emit(AsaxiG2p.Prefix + token, outPhonemes);
                 }
                 return outPhonemes.ToArray();
             }
