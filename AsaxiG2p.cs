@@ -81,21 +81,32 @@ namespace Asaxi {
         static readonly HashSet<string> CanTakeX = new HashSet<string> { "p", "t", "k", "ch", "c" };
 
         /// <summary>
-        /// Cluster token -> the two phones it degrades into when a bank has no such cluster.
-        /// Only secondary articulations split: <c>kw</c> becomes <c>k</c> + <c>w</c> and
-        /// <c>ky</c> becomes <c>k</c> + <c>j</c>. Aspiration (<c>kx</c>) does not split — there is
-        /// no separate /h/ phoneme to hand it to — and neither do the base tokens that merely
-        /// look like clusters: <c>ny</c> is /ɲ/ and <c>hy</c> is /ç/, each a single phoneme.
+        /// Cluster token -> the two phones it is realised as.
+        ///
+        /// <para>Labialisation and palatalisation split only when the bank has no such cluster:
+        /// <c>kw</c> becomes <c>k</c> + <c>w</c>, <c>ky</c> becomes <c>k</c> + <c>j</c>.</para>
+        ///
+        /// <para>Aspiration splits <b>always</b>. An aspirated stop is a stop plus a release, and
+        /// no bank of this family has a trained aspirated series, so <c>kx</c> is realised as
+        /// <c>k</c> + <c>hh</c> — the aspiration is carried by the <c>hh</c> token, whose
+        /// placeholder on a 2.5-family bank is <c>en/hh</c>.</para>
+        ///
+        /// <para>Base tokens that merely look like clusters never split: <c>ny</c> is /ɲ/ and
+        /// <c>hy</c> is /ç/, each one phoneme.</para>
         /// </summary>
-        static readonly Dictionary<string, (string Stem, string Glide)> Splittable = BuildSplittable();
+        static readonly Dictionary<string, (string Stem, string Glide, bool AlwaysSplit)>
+            Splittable = BuildSplittable();
 
-        static Dictionary<string, (string, string)> BuildSplittable() {
-            var table = new Dictionary<string, (string, string)>();
+        static Dictionary<string, (string, string, bool)> BuildSplittable() {
+            var table = new Dictionary<string, (string, string, bool)>();
             foreach (var g in CanTakeW) {
-                table[Base[g] + "w"] = (Base[g], "w");
+                table[Base[g] + "w"] = (Base[g], "w", false);
             }
             foreach (var g in CanTakeJ) {
-                table[Base[g] + "y"] = (Base[g], "j");
+                table[Base[g] + "y"] = (Base[g], "j", false);
+            }
+            foreach (var g in CanTakeX) {
+                table[Base[g] + "x"] = (Base[g], "hh", true);
             }
             table.Remove("hy");   // /ç/ is one phoneme, not h + j
             return table;
@@ -115,6 +126,11 @@ namespace Asaxi {
             return true;
         }
 
+        /// <summary>True when the token must be split even on a bank that names it.</summary>
+        public static bool MustSplit(string token) =>
+            !string.IsNullOrEmpty(token) && Splittable.TryGetValue(token, out var parts)
+            && parts.AlwaysSplit;
+
         /// <summary>
         /// Splits a cluster the bank cannot sing into base + glide. Returns false when the symbol
         /// is singable, is not a splittable cluster, or when either half is also missing — in
@@ -123,12 +139,16 @@ namespace Asaxi {
         public static bool TryDegrade(string symbol, Func<string, bool> singerHas,
                                       out string[] replacement) {
             replacement = null;
-            if (string.IsNullOrEmpty(symbol) || singerHas(symbol)) {
+            if (string.IsNullOrEmpty(symbol)) {
                 return false;
             }
             var prefix = symbol.StartsWith(Prefix) ? Prefix : string.Empty;
             var bare = symbol.Substring(prefix.Length);
             if (!TrySplitCluster(bare, out var stem, out var glide)) {
+                return false;
+            }
+            // a secondary articulation is only a fallback; aspiration is always stop + release
+            if (!MustSplit(bare) && singerHas(symbol)) {
                 return false;
             }
             var head = prefix + stem;

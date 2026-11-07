@@ -164,8 +164,6 @@ namespace Conformance {
                 AsaxiG2p.TrySplitCluster("nyw", out var s3, out var g3) && s3 == "ny" && g3 == "w");
             Check("ny does NOT split (it is /ɲ/)", !AsaxiG2p.TrySplitCluster("ny", out _, out _));
             Check("hy does NOT split (it is /ç/)", !AsaxiG2p.TrySplitCluster("hy", out _, out _));
-            Check("kx does NOT split (aspiration has no glide)",
-                !AsaxiG2p.TrySplitCluster("kx", out _, out _));
 
             // a bank WITH the cluster: passes through untouched
             var rich = new HashSet<string> { "asa/ky", "asa/k", "asa/j" };
@@ -177,6 +175,18 @@ namespace Conformance {
             Check("bank without asa/ky degrades to asa/k + asa/j",
                 AsaxiG2p.TryDegrade("asa/ky", s => poor.Contains(s), out rep)
                 && rep.Length == 2 && rep[0] == "asa/k" && rep[1] == "asa/j",
+                rep == null ? "(no split)" : string.Join(" ", rep));
+
+            // aspiration: stop + release, ALWAYS, because no bank of this family has a
+            // trained aspirated series. The release is the hh token, whose placeholder is en/hh.
+            Check("kx splits to k + hh (aspiration, not a glide)",
+                AsaxiG2p.TrySplitCluster("kx", out var s4, out var g4) && s4 == "k" && g4 == "hh");
+            Check("MustSplit: aspiration always, palatalisation only as fallback",
+                AsaxiG2p.MustSplit("kx") && AsaxiG2p.MustSplit("px") && !AsaxiG2p.MustSplit("ky"));
+            var withAspiration = new HashSet<string> { "asa/kx", "asa/k", "asa/hh" };
+            Check("aspiration splits even when the bank has asa/kx",
+                AsaxiG2p.TryDegrade("asa/kx", s => withAspiration.Contains(s), out rep)
+                && rep.Length == 2 && rep[0] == "asa/k" && rep[1] == "asa/hh",
                 rep == null ? "(no split)" : string.Join(" ", rep));
 
             // a bank with neither half: leave it alone, the host reports it as before
