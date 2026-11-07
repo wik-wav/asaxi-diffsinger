@@ -181,8 +181,15 @@ as **DiffSinger Asaxi Phonemizer** (`DIFFS ASA`) in the phonemizer list.
 
 ## The bank side
 
-The plugin cannot load without a `dsdict-asa.yaml` beside the singer, and a phone missing from
-its `symbols:` block is dropped silently. The file is small and hand-writable — `symbols:` with a
+**Nothing is required in the bank for the plugin to load or to sing.** If the singer has no
+dictionary where OpenUtau looks, the phonemizer falls back to its own rules — which is all it ever
+uses, since words come from the rules and every phone name is resolved against the bank's own
+table (see "Any other voicebank" above). This matters in practice: some shipped banks keep their
+configs in a subfolder and carry no `dsdict.yaml` at all, and the stock loader throws without one.
+
+A `dsdict-asa.yaml` beside the singer is what makes the bank sing the **`asa/*` tokens** rather
+than the closest foreign phone. It is a symbol table, not a word list, and only matters for a bank
+prepared for Asaxi. The file is small and hand-writable — `symbols:` with a
 line per phone, `entries:` empty:
 
 ```yaml

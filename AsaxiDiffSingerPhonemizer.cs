@@ -85,10 +85,18 @@ namespace Asaxi {
         /// and a cluster the bank does not really have is split into base + glide.
         /// </summary>
         protected override IG2p LoadG2p(string rootPath, bool useLangId = false) {
-            return new SingerVocabularyG2p(base.LoadG2p(rootPath, useLangId),
-                                           IsPhonemeSupported,
-                                           TryReadTokenIds(rootPath),
-                                           new AsaxiG2p());
+            IG2p inner;
+            try {
+                inner = base.LoadG2p(rootPath, useLangId);
+            } catch (Exception) {
+                // No dsdict-asa.yaml and no dsdict.yaml beside the singer. The host's dictionary
+                // is only a word table, which this phonemizer does not use: words come from the
+                // rules and every phone name is resolved against the bank. So carry on with the
+                // rules as the inner G2P instead of failing to load on an otherwise fine bank.
+                inner = new AsaxiG2p();
+            }
+            return new SingerVocabularyG2p(inner, IsPhonemeSupported,
+                                           TryReadTokenIds(rootPath), new AsaxiG2p());
         }
 
         /// <summary>The symbol table's path as the bank's own dsconfig declares it.</summary>
@@ -135,6 +143,10 @@ namespace Asaxi {
             readonly Dictionary<string, int> tokenIds;
             readonly bool idsKnown;
             readonly AsaxiG2p rules;
+            // resolved bank name -> how the underlying Asaxi token classifies, so IsVowel /
+            // IsGlide still answer correctly when the host's dictionary is absent
+            readonly Dictionary<string, bool> vowelOf = new Dictionary<string, bool>();
+            readonly Dictionary<string, bool> glideOf = new Dictionary<string, bool>();
 
             public SingerVocabularyG2p(IG2p inner, Func<string, bool> singerHas,
                                        Dictionary<string, int> tokenIds, AsaxiG2p rules) {
@@ -150,9 +162,13 @@ namespace Asaxi {
                 || (!string.IsNullOrEmpty(symbol) && singerHas(symbol))
                 || Resolve(symbol) != null;
 
-            public bool IsVowel(string symbol) => inner.IsVowel(symbol);
+            public bool IsVowel(string symbol) =>
+                inner.IsVowel(symbol)
+                || (symbol != null && vowelOf.TryGetValue(symbol, out var v) && v);
 
-            public bool IsGlide(string symbol) => inner.IsGlide(symbol);
+            public bool IsGlide(string symbol) =>
+                inner.IsGlide(symbol)
+                || (symbol != null && glideOf.TryGetValue(symbol, out var g) && g);
 
             /// <summary>
             /// Rewrites each phone the rules produced into something the singer can actually sing:
@@ -206,7 +222,15 @@ namespace Asaxi {
             /// The bank's name for an Asaxi token: `asa/&lt;token&gt;` if the bank has it, else the
             /// token's alternative spellings under any language prefix the bank uses, else null.
             /// </summary>
-            string Resolve(string symbol) => AsaxiG2p.ResolveBankName(symbol, singerHas);
+            string Resolve(string symbol) {
+                var resolved = AsaxiG2p.ResolveBankName(symbol, singerHas);
+                if (resolved != null && symbol.StartsWith(AsaxiG2p.Prefix)) {
+                    var token = symbol.Substring(AsaxiG2p.Prefix.Length);
+                    vowelOf[resolved] = rules.IsVowel(token);
+                    glideOf[resolved] = rules.IsGlide(token);
+                }
+                return resolved;
+            }
 
             /// <summary>
             /// True when the bank's cluster token and its base token are the SAME token id — the
