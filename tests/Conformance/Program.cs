@@ -184,8 +184,8 @@ namespace Conformance {
             Check("MustSplit: aspiration always, palatalisation only as fallback",
                 AsaxiG2p.MustSplit("kx") && AsaxiG2p.MustSplit("px") && !AsaxiG2p.MustSplit("ky"));
             var withAspiration = new HashSet<string> { "asa/kx", "asa/k", "asa/hh" };
-            Check("aspiration splits even when the bank has asa/kx",
-                AsaxiG2p.TryDegrade("asa/kx", s => withAspiration.Contains(s), null, out rep)
+            Check("aspiration splits when asa/kx is only an alias",
+                AsaxiG2p.TryDegrade("asa/kx", s => withAspiration.Contains(s), (c, b) => true, out rep)
                 && rep.Length == 2 && rep[0] == "asa/k" && rep[1] == "asa/hh",
                 rep == null ? "(no split)" : string.Join(" ", rep));
 
@@ -202,6 +202,22 @@ namespace Conformance {
             var genuine = new HashSet<string> { "asa/gw", "asa/g", "asa/w" };
             Check("a genuine asa/gw is kept, not split",
                 !AsaxiG2p.TryDegrade("asa/gw", s => genuine.Contains(s), (c, b) => false, out rep));
+
+            // a bank with a REAL trained aspirated stop keeps it
+            var trained = new HashSet<string> { "asa/kx", "asa/k", "asa/hh" };
+            Check("a genuine asa/kx is kept, not split",
+                !AsaxiG2p.TryDegrade("asa/kx", s => trained.Contains(s), (c, b) => false, out rep));
+
+            // ...but an aliased one still splits (asa/kx pointing at asa/k)
+            Check("an aliased asa/kx still splits",
+                AsaxiG2p.TryDegrade("asa/kx", s => trained.Contains(s),
+                                    (c, b) => c == "asa/kx" && b == "asa/k", out rep)
+                && rep.Length == 2 && rep[0] == "asa/k" && rep[1] == "asa/hh",
+                rep == null ? "(no split)" : string.Join(" ", rep));
+
+            // and with no id table at all, aspiration still splits rather than guessing wrong
+            Check("aspiration splits when the id table is unavailable",
+                AsaxiG2p.TryDegrade("asa/kx", s => trained.Contains(s), null, out rep));
 
             // a bank with neither half: leave it alone, the host reports it as before
             Check("bank without the glide does not degrade",

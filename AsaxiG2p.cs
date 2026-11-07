@@ -134,12 +134,17 @@ namespace Asaxi {
         /// <summary>
         /// Splits a cluster the bank cannot really sing into base + glide.
         ///
-        /// <para>Three reasons to split: the bank has no such phone at all; the token is an
-        /// aspirated stop, which is always realised as stop + release; or the bank's cluster
-        /// shares its base's token id, which means it is a placeholder alias of the plain phone
-        /// and carries none of the secondary articulation. That last case is why `<c>asa/bw</c>`
-        /// being present in a bank is not evidence that the bank can sing a labialised /b/ —
-        /// when the placeholder pass wrote it, it points at `<c>asa/b</c>`.</para>
+        /// <para>Two reasons to split: the bank has no such phone at all, or the bank's cluster
+        /// shares its base's token id — a placeholder alias of the plain phone, carrying none of
+        /// the secondary articulation. Everything the bank really has is left alone, so a bank
+        /// trained with its own `bw` or `kx` keeps them; the id test is what distinguishes that
+        /// from the alias. (That is why `<c>asa/bw</c>` merely being present in a bank is not
+        /// evidence that the bank can sing a labialised /b/ — when the placeholder pass wrote it,
+        /// it points at `<c>asa/b</c>`.)</para>
+        ///
+        /// <para><c>MustSplit</c> survives only as a fallback for when the id table could not be
+        /// read: with no ids there is no way to tell a real aspirated stop from an alias, and
+        /// splitting is the safer guess on any bank of this family.</para>
         ///
         /// <para>Returns false when nothing should change, or when either half is missing, in
         /// which case the caller keeps the original and the host reports it as before.</para>
@@ -160,8 +165,10 @@ namespace Asaxi {
             }
             var head = prefix + stem;
             var tail = prefix + glide;
-            if (!MustSplit(bare) && singerHas(symbol)
-                && !(isPlaceholderAlias != null && isPlaceholderAlias(symbol, head))) {
+            var placeholderAlias = isPlaceholderAlias != null && isPlaceholderAlias(symbol, head);
+            // aspiration splits unconditionally ONLY when the ids are unknown, as a fallback
+            var blindAspirationSplit = MustSplit(bare) && isPlaceholderAlias == null;
+            if (!blindAspirationSplit && singerHas(symbol) && !placeholderAlias) {
                 return false;
             }
             if (!singerHas(head) || !singerHas(tail)) {
