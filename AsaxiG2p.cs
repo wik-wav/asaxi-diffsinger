@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using OpenUtau.Api;
@@ -124,6 +125,139 @@ namespace Asaxi {
             stem = parts.Stem;
             glide = parts.Glide;
             return true;
+        }
+
+        /// <summary>
+        /// Prefixes a bank may put in front of a phone name, tried in this order after the
+        /// unprefixed form. A multi-language DiffSinger bank usually names every phone
+        /// `<lang>/<phone>` and has no bare names at all, so an Asaxi token has to be looked up
+        /// under the language whose inventory contains it.
+        /// </summary>
+        public static readonly string[] BankPrefixes = {
+            "", "en/", "ja/", "pl/", "zh/", "es/", "ko/", "tg/",
+        };
+
+        /// <summary>
+        /// The spellings to try, in order, when a bank has no `asa/&lt;token&gt;`. Only the tokens
+        /// whose Asaxi spelling is NOT the spelling another language would use need an entry:
+        /// `j` is the glide (banks call it `y`), `S` is /ɕ/ (`sh` or `S`), `rr` is the rhotic vowel
+        /// (`er` before the Japanese flap `rr`), and so on. Everything else falls through to its
+        /// own name.
+        /// </summary>
+        static readonly Dictionary<string, string[]> FallbackAliases = new Dictionary<string, string[]> {
+            { "j", new[] { "y" } },
+            { "S", new[] { "S", "sh" } },
+            { "ts", new[] { "ts", "c" } },
+            { "dz", new[] { "dz" } },
+            { "ny", new[] { "ny", "N" } },
+            { "dx", new[] { "dx", "r" } },
+            { "rr", new[] { "er", "rr" } },
+            { "hh", new[] { "hh", "h", "H" } },
+            { "h", new[] { "h", "x" } },
+            { "xn", new[] { "xn", "nn", "n" } },
+            { "nng", new[] { "nng", "ng" } },
+            { "cl", new[] { "cl", "tcl" } },
+            { "q", new[] { "q", "?" } },
+            { "yj", new[] { "iy", "ih" } },
+            // banks that never write a bare close vowel: `e` is eh/ey, `i` is iy, `o` is oh/ow,
+            // `u` is uu/uw. The Asaxi spelling is still tried first, so a bank that HAS `en/e`
+            // resolves to it and these are only a fallback.
+            { "e", new[] { "e", "eh", "ey" } },
+            { "i", new[] { "i", "iy" } },
+            { "o", new[] { "o", "oh", "ow" } },
+            { "u", new[] { "u", "uu", "uw" } },
+            { "aj", new[] { "ay" } },
+        };
+
+        /// <summary>Spellings to try for a token, most specific first.</summary>
+        public static string[] FallbackNames(string token) =>
+            FallbackAliases.TryGetValue(token, out var names) ? names : new[] { token };
+
+        /// <summary>
+        /// The bank's name for an Asaxi token, or null when it has none. Tries the token's own
+        /// `<c>asa/</c>` form first, then each spelling in <see cref="FallbackNames"/> under each
+        /// prefix the bank might use. Pure function of the predicate, so it can be tested without
+        /// a singer.
+        /// </summary>
+        public static string ResolveBankName(string symbol, Func<string, bool> singerHas) {
+            if (string.IsNullOrEmpty(symbol)) {
+                return null;
+            }
+            if (singerHas(symbol)) {
+                return symbol;
+            }
+            var prefix = symbol.StartsWith(Prefix) ? Prefix : string.Empty;
+            var bare = symbol.Substring(prefix.Length);
+            foreach (var name in FallbackNames(bare)) {
+                foreach (var bankPrefix in BankPrefixes) {
+                    var candidate = bankPrefix + name;
+                    if (singerHas(candidate)) {
+                        return candidate;
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Name -> id pairs from a flat JSON object, tolerating duplicate keys and trailing commas.
+        /// Some published banks repeat a key; `JsonDocument` rejects that outright, and losing the
+        /// whole table over it would disable the placeholder-alias test for no reason.
+        /// </summary>
+        public static Dictionary<string, int> ParseNameToId(string json) {
+            var ids = new Dictionary<string, int>();
+            if (string.IsNullOrEmpty(json)) {
+                return ids;
+            }
+            try {
+                using (var doc = System.Text.Json.JsonDocument.Parse(json)) {
+                    foreach (var property in doc.RootElement.EnumerateObject()) {
+                        if (property.Value.TryGetInt32(out var id)) {
+                            ids[property.Name] = id;
+                        }
+                    }
+                    return ids;
+                }
+            } catch (Exception) {
+                // fall through to the textual scan
+            }
+            foreach (System.Text.RegularExpressions.Match m
+                     in System.Text.RegularExpressions.Regex.Matches(
+                         json, @"""([^""]+)""\s*:\s*(\d+)")) {
+                if (int.TryParse(m.Groups[2].Value, out var id)) {
+                    ids[m.Groups[1].Value] = id;
+                }
+            }
+            return ids;
+        }
+
+        /// <summary>
+        /// A bank's symbol table, loaded exactly as OpenUtau loads it
+        /// (<c>DiffSingerUtils.LoadPhonemes</c>): a <c>.json</c> file maps name to id, anything
+        /// else is a flat list where the id is the line number. Several published banks ship the
+        /// flat form, and reading it as JSON silently yields nothing.
+        /// </summary>
+        public static Dictionary<string, int> LoadNameToId(string path) {
+            var ids = new Dictionary<string, int>();
+            try {
+                if (!File.Exists(path)) {
+                    return ids;
+                }
+                var text = File.ReadAllText(path);
+                if (string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase)) {
+                    return ParseNameToId(text);
+                }
+                var lines = text.Replace("\r", string.Empty).Split('\n');
+                for (var i = 0; i < lines.Length; i++) {
+                    var name = lines[i].TrimEnd('\r');
+                    if (name.Length > 0) {
+                        ids[name] = i;
+                    }
+                }
+            } catch (Exception) {
+                // an unreadable table is not fatal
+            }
+            return ids;
         }
 
         /// <summary>True when the token must be split even on a bank that names it.</summary>

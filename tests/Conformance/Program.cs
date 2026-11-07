@@ -32,7 +32,73 @@ namespace Conformance {
             }
         }
 
+        /// <summary>
+        /// How would this voicebank cope with Asaxi? Reads the symbol table the way the host does
+        /// (from the path its dsconfig declares, not always the root) and resolves every token
+        /// through the same ladder the phonemizer uses.
+        /// </summary>
+        static int BankReport(string bankDir) {
+            var dsconfig = Path.Combine(bankDir, "dsconfig.yaml");
+            var phonemes = "phonemes.json";
+            if (File.Exists(dsconfig)) {
+                foreach (var line in File.ReadAllLines(dsconfig)) {
+                    var t = line.Trim();
+                    if (t.StartsWith("phonemes:", StringComparison.Ordinal)) {
+                        var v = t.Substring("phonemes:".Length).Trim().Trim('"', '\'');
+                        if (v.Length > 0) {
+                            phonemes = v.Replace('/', Path.DirectorySeparatorChar);
+                        }
+                    }
+                }
+            }
+            var table = Path.Combine(bankDir, phonemes);
+            if (!File.Exists(table)) {
+                Console.Error.WriteLine("no symbol table at " + table);
+                return 2;
+            }
+            var names = new HashSet<string>(AsaxiG2p.LoadNameToId(table).Keys);
+            bool Has(string n) => names.Contains(n);
+
+            var inventory = AsaxiG2p.Vowels.Concat(AsaxiG2p.Nuclei).Concat(AsaxiG2p.Consonants)
+                .Distinct().OrderBy(x => x, StringComparer.Ordinal).ToArray();
+            int direct = 0, viaLadder = 0, viaSplit = 0, lost = 0;
+            var lostNames = new List<string>();
+            foreach (var token in inventory) {
+                if (Has("asa/" + token)) {
+                    direct++;
+                    continue;
+                }
+                var resolved = AsaxiG2p.ResolveBankName("asa/" + token, Has);
+                if (resolved != null) {
+                    viaLadder++;
+                    continue;
+                }
+                if (AsaxiG2p.TrySplitCluster(token, out var h, out var g)
+                    && AsaxiG2p.ResolveBankName("asa/" + h, Has) != null
+                    && AsaxiG2p.ResolveBankName("asa/" + g, Has) != null) {
+                    viaSplit++;
+                    continue;
+                }
+                lost++;
+                if (lostNames.Count < 25) {
+                    lostNames.Add(token);
+                }
+            }
+            Console.WriteLine("bank: " + Path.GetFileName(bankDir));
+            Console.WriteLine("  symbol table: {0}  ({1} names)", phonemes, names.Count);
+            Console.WriteLine("  asa/* present      : {0}", direct);
+            Console.WriteLine("  resolved by ladder : {0}", viaLadder);
+            Console.WriteLine("  resolved by split  : {0}", viaSplit);
+            Console.WriteLine("  unresolvable       : {0}  {1}", lost,
+                lost == 0 ? "" : string.Join(" ", lostNames));
+            return lost == 0 && viaLadder + direct > 0 ? 0 : 1;
+        }
+
         static int Main(string[] args) {
+            var bankArg = Array.IndexOf(args, "--bank");
+            if (bankArg >= 0 && bankArg + 1 < args.Length) {
+                return BankReport(args[bankArg + 1]);
+            }
             var here = Path.GetDirectoryName(typeof(Program).Assembly.Location);
             var tsv = Path.Combine(here, "asa_conformance.tsv");
             if (!File.Exists(tsv)) {
@@ -222,6 +288,38 @@ namespace Conformance {
             // a bank with neither half: leave it alone, the host reports it as before
             Check("bank without the glide does not degrade",
                 !AsaxiG2p.TryDegrade("asa/ky", s => s == "asa/k", null, out rep));
+
+            // ---------------------------------------------------------------- foreign banks
+            // Modelled on a real multi-language bank (HaiameSen_DS_Neo): every name prefixed,
+            // no bare names at all, no asa/*. The ladder has to find each phone by its own
+            // spelling under whichever language carries it.
+            Console.WriteLine();
+            var foreign = new HashSet<string> {
+                "en/a", "en/p", "en/b", "en/k", "en/t", "en/d", "en/g", "en/m", "en/n", "en/l",
+                "en/s", "en/z", "en/f", "en/v", "en/w", "en/y", "en/h", "en/hh", "en/ch", "en/sh",
+                "en/zh", "en/jh", "en/th", "en/dh", "en/tcl", "en/q", "en/ng", "en/nn", "en/er",
+                "en/ao", "en/ay", "en/aw", "en/ax", "en/ey", "en/ih", "en/ow", "en/oy", "en/uw",
+                "en/iy", "en/e", "en/o", "ja/u", "ja/i", "ja/ny", "pl/S", "ja/ts", "en/dz",
+                "en/dx", "SP", "AP",
+            };
+            bool Has(string n) => foreign.Contains(n);
+            Check("asa/a  -> en/a on a bank with no asa/*", AsaxiG2p.ResolveBankName("asa/a", Has) == "en/a");
+            Check("asa/p  -> en/p", AsaxiG2p.ResolveBankName("asa/p", Has) == "en/p");
+            Check("asa/j  -> en/y (the glide is spelled y)", AsaxiG2p.ResolveBankName("asa/j", Has) == "en/y");
+            Check("asa/S  -> pl/S (/ɕ/, not en/sh)", AsaxiG2p.ResolveBankName("asa/S", Has) == "pl/S");
+            Check("asa/ts -> ja/ts", AsaxiG2p.ResolveBankName("asa/ts", Has) == "ja/ts");
+            Check("asa/ny -> ja/ny", AsaxiG2p.ResolveBankName("asa/ny", Has) == "ja/ny");
+            Check("asa/u  -> ja/u (en has no /ɯ/)", AsaxiG2p.ResolveBankName("asa/u", Has) == "ja/u");
+            Check("asa/hh -> en/hh", AsaxiG2p.ResolveBankName("asa/hh", Has) == "en/hh");
+            Check("asa/bw has no name there",
+                AsaxiG2p.ResolveBankName("asa/bw", Has) == null);
+
+            // ...and that the cluster then splits into two names the bank does have
+            Check("asa/bw splits to en/b + en/w on that bank",
+                !Has("asa/bw")
+                && AsaxiG2p.TrySplitCluster("bw", out var fb, out var fg)
+                && AsaxiG2p.ResolveBankName("asa/" + fb, Has) == "en/b"
+                && AsaxiG2p.ResolveBankName("asa/" + fg, Has) == "en/w");
 
             // ---------------------------------------------------------------- pause phones
             Console.WriteLine();

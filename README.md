@@ -122,6 +122,34 @@ bank). A stop plus its release is closer to /kʰ/ than a bare /k/.
 Applies to lyrics, not to phonetic hints: the host validates a hint symbol verbatim and hands it
 straight to the bank, so a hint naming a phone the bank lacks is still dropped.
 
+### Any other voicebank
+
+A bank that has never heard of Asaxi still sings it. Every phone the rules emit is looked up in
+the bank's own table in this order:
+
+1. **`asa/<phone>`** — a bank prepared for Asaxi has it, and that is used directly.
+2. **the bank's spelling of the same phone** — the token's own name under whichever language
+   prefix the bank uses (`asa/a` → `en/a`, `asa/u` → `ja/u`), then a short alias list for names
+   that differ between conventions (`j` → `y`, `S` → `sh`, `ts` → `c`, `ny` → `N`, `rr` → `er`,
+   `e` → `eh`/`ey`, `o` → `oh`/`ow`, `u` → `uu`/`uw`).
+3. **base + glide** — for a cluster the bank does not have (`bw` → `b` + `w`).
+4. If none of those exist, the phone is passed through and OpenUtau reports it.
+
+Nothing is invented and nothing is re-ordered: a bank with its own `asa/bw` uses it, and a bank
+whose table is a flat `phonemes.txt` is read the way the host reads it.
+
+To see how a particular bank will fare, without opening OpenUtau:
+
+```powershell
+dotnet run --project tests/Conformance -c Release -p:OpenUtauCorePath="<path to OpenUtau.Core.dll>" `
+  -- --bank "<OpenUtau>\Singers\content\OU_voicebank\<bank>"
+```
+
+It reports how many of the 104 tokens are found directly, found through the ladder, covered by a
+split, or unresolvable. A prepared Asaxi bank reports 104 direct. A large multi-language bank with
+no Asaxi support reports 0 direct and the rest split between the ladder and the split, typically
+with nothing lost; a deliberately small bank will lose the phones it simply does not have.
+
 ## Build
 
 Needs the .NET **10** SDK. Nothing else — no OpenUtau, no NuGet packages, no Visual Studio.
