@@ -184,6 +184,22 @@ namespace Conformance {
             var setUp = mine.GetMethod("SetUp", BindingFlags.Instance | BindingFlags.Public);
             Check("SetUp overrides the host's (where hints are read)",
                 setUp != null && setUp.DeclaringType == mine && setUp.GetBaseDefinition() != setUp);
+            // base.SetUp(...) compiles to a NON-virtual call to the type that DECLARES SetUp in
+            // the chain the plugin was built against. If that is `Phonemizer` the call lands on
+            // the empty base and skips MachineLearningPhonemizer.SetUp, which fills partResult -
+            // every note then fails with "Part result not found". (GetBaseDefinition() is no use
+            // here: it walks to the root virtual, which is always Phonemizer.)
+            Type setUpDeclarer = null;
+            for (var t = mine.BaseType; t != null; t = t.BaseType) {
+                if (t.GetMethod("SetUp", BindingFlags.Instance | BindingFlags.Public
+                                | BindingFlags.DeclaredOnly) != null) {
+                    setUpDeclarer = t;
+                    break;
+                }
+            }
+            Check("SetUp is declared by MachineLearningPhonemizer in the chain",
+                setUpDeclarer != null && setUpDeclarer.Name == "MachineLearningPhonemizer",
+                setUpDeclarer?.FullName ?? "(none)");
 
             Check("IsPhonemeSupported exists on the base",
                 isSupported != null && isSupported.ReturnType == typeof(bool)

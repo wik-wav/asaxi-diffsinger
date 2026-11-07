@@ -71,8 +71,24 @@ namespace OpenUtau.Api {
     }
 }
 
+namespace OpenUtau.Core {
+    /// <summary>
+    /// The host's intermediate class. It exists in this stub for one reason: `base.SetUp(...)`
+    /// emits a non-virtual call to the DECLARING type, so the override must sit on a type that
+    /// mirrors where the host implements it, or the call lands on the empty base implementation.
+    /// </summary>
+    public abstract class MachineLearningPhonemizer : OpenUtau.Api.Phonemizer {
+        public override void SetUp(Note[][] groups, OpenUtau.Core.Ustx.UProject project,
+                                   OpenUtau.Core.Ustx.UTrack track) { }
+
+        public override Result Process(Note[] notes, Note? prev, Note? next,
+                                       Note? prevNeighbour, Note? nextNeighbour, Note[] prevs) =>
+            default;
+    }
+}
+
 namespace OpenUtau.Core.DiffSinger {
-    public abstract class DiffSingerG2pPhonemizer : OpenUtau.Api.Phonemizer {
+    public abstract class DiffSingerG2pPhonemizer : OpenUtau.Core.MachineLearningPhonemizer {
         protected virtual string GetDictionaryName() => "dsdict.yaml";
 
         public virtual string GetLangCode() => string.Empty;
@@ -92,11 +108,6 @@ namespace OpenUtau.Core.DiffSinger {
         // this one type. Not overridden by the plugin - only called.
         protected bool IsPhonemeSupported(string symbol) => false;
 
-        // Concrete here so a subclass can call base.Process(...); the host's own implementation
-        // is what actually runs.
-        public override Result Process(Note[] notes, Note? prev, Note? next,
-                                       Note? prevNeighbour, Note? nextNeighbour, Note[] prevs) =>
-            default;
     }
 }
 
