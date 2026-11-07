@@ -59,5 +59,14 @@ namespace OpenUtau.Core.DiffSinger {
         protected virtual string[] GetBaseG2pVowels() => new string[] { };
 
         protected virtual string[] GetBaseG2pConsonants() => new string[] { };
+
+        // The real DiffSingerG2pPhonemizer overrides this from DiffSingerBasePhonemizer (where it
+        // is `protected virtual IG2p LoadG2p(string rootPath, bool useLangId = false)`), so the
+        // stub must expose it as virtual too or the plugin cannot override it.
+        protected virtual OpenUtau.Api.IG2p LoadG2p(string rootPath, bool useLangId = false) => null;
+
+        // Declared on DiffSingerBasePhonemizer in the real assembly, which the stub collapses into
+        // this one type. Not overridden by the plugin - only called.
+        protected bool IsPhonemeSupported(string symbol) => false;
     }
 }

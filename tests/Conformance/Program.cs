@@ -100,7 +100,7 @@ namespace Conformance {
             var mine = typeof(DiffSingerAsaxiPhonemizer);
             var expected = new[] {
                 "GetLangCode", "GetDictionaryName", "LoadBaseG2p",
-                "GetBaseG2pVowels", "GetBaseG2pConsonants",
+                "GetBaseG2pVowels", "GetBaseG2pConsonants", "LoadG2p",
             };
             foreach (var name in expected) {
                 var method = mine.GetMethods(BindingFlags.Instance | BindingFlags.Public
@@ -109,6 +109,13 @@ namespace Conformance {
                 var isOverride = method != null && method.GetBaseDefinition() != method;
                 Check(name + " overrides a real base member", isOverride);
             }
+
+            // the facade also declares IsPhonemeSupported (non-virtual, called not overridden)
+            var isSupported = baseType.GetMethod("IsPhonemeSupported",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Check("IsPhonemeSupported exists on the base",
+                isSupported != null && isSupported.ReturnType == typeof(bool)
+                && isSupported.GetParameters().Length == 1);
 
             // asm is the host assembly only because the plugin bound to it; if the plugin had
             // resolved its own copy, LoadBaseG2p would still work but this identity would differ

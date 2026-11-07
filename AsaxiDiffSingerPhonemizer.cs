@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using OpenUtau.Api;
 using OpenUtau.Core.DiffSinger;
@@ -42,5 +43,49 @@ namespace Asaxi {
         protected override string[] GetBaseG2pVowels() => AsaxiG2p.Vowels.Concat(AsaxiG2p.Nuclei).ToArray();
 
         protected override string[] GetBaseG2pConsonants() => AsaxiG2p.Consonants;
+
+        /// <summary>
+        /// Wraps the loaded G2P so that a phonetic hint may name any phone the singer can actually
+        /// sing, not only the ones the rule G2P produces.
+        ///
+        /// <para>Why: the host validates a hint symbol with
+        /// <c>g2p.IsValidSymbol(s) &amp;&amp; the bank has s</c>, and the rule G2P only claims its
+        /// own <c>asa/*</c> tokens. A UST written against the concatenative Asaxi phonemizer puts
+        /// that bank's vocabulary in the hints — <c>[y a w]</c>, <c>[a y]</c> — so every bare name
+        /// failed the first half of that test, the symbol was dropped, the note had nothing left to
+        /// sing and the bank errored. The voicebank had the phones all along; the phonemizer was
+        /// refusing to look at them.</para>
+        ///
+        /// <para>Word queries are untouched: <see cref="IG2p.Query"/> passes straight through, so
+        /// lyrics still phonemise to <c>asa/*</c>. Only hint validation widens, which is also how a
+        /// bare-symbol plugin such as the Polish one already behaves.</para>
+        /// </summary>
+        protected override IG2p LoadG2p(string rootPath, bool useLangId = false) {
+            return new SingerVocabularyG2p(base.LoadG2p(rootPath, useLangId), IsPhonemeSupported);
+        }
+
+        /// <summary>Delegates everything; widens only <c>IsValidSymbol</c> to the singer's table.</summary>
+        sealed class SingerVocabularyG2p : IG2p {
+            readonly IG2p inner;
+            readonly Func<string, bool> singerHas;
+
+            public SingerVocabularyG2p(IG2p inner, Func<string, bool> singerHas) {
+                this.inner = inner;
+                this.singerHas = singerHas;
+            }
+
+            public bool IsValidSymbol(string symbol) =>
+                inner.IsValidSymbol(symbol)
+                || (!string.IsNullOrEmpty(symbol) && singerHas(symbol));
+
+            public bool IsVowel(string symbol) => inner.IsVowel(symbol);
+
+            public bool IsGlide(string symbol) => inner.IsGlide(symbol);
+
+            public string[] Query(string grapheme) => inner.Query(grapheme);
+
+            public string[] UnpackHint(string hint, char separator = ' ') =>
+                inner.UnpackHint(hint, separator);
+        }
     }
 }
